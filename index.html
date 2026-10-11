@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mirův tréninkový den</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1F6B3A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Trénink">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: jednosloupcová mobilní apka — týdenní pás nahoře, dnešní karta, mini úkol, tahák dole */
+:root{
+  --bg:#F3F4F1; --surface:#FFFFFF; --line:#DCDFD8; --fg:#16190F; --muted:#5E6456;
+  --accent:#1F6B3A; --accent-ink:#FFFFFF; --accent-soft:#E2EEE5;
+  --warn:#B4541A; --done:#1F6B3A; --miss:#C8CCC2;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10130E; --surface:#191D16; --line:#2C3227; --fg:#EEF1E9; --muted:#9CA392;
+  --accent:#63C27F; --accent-ink:#0C1A10; --accent-soft:#1F2E22;
+  --warn:#E89257; --done:#63C27F; --miss:#363C31; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10130E; --surface:#191D16; --line:#2C3227; --fg:#EEF1E9; --muted:#9CA392;
+  --accent:#63C27F; --accent-ink:#0C1A10; --accent-soft:#1F2E22;
+  --warn:#E89257; --done:#63C27F; --miss:#363C31; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:520px;margin:0 auto;padding-inline:16px;padding-block:14px 48px;display:flex;flex-direction:column;gap:14px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:.01em}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.top h1{font-size:2.1rem;line-height:1;text-transform:uppercase}
+.top .sub{color:var(--muted);font-size:.9rem}
+.streak{text-align:right;font-family:var(--display);line-height:1}
+.streak b{font-size:2.4rem;color:var(--accent);font-variant-numeric:tabular-nums}
+.streak span{display:block;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.wd{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 0 7px;text-align:center;font:inherit;color:var(--fg);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+.wd small{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.wd b{font-family:var(--display);font-size:1.15rem;font-variant-numeric:tabular-nums}
+.wd i{width:8px;height:8px;border-radius:50%;background:transparent;border:1.5px solid var(--miss)}
+.wd.full i{background:var(--done);border-color:var(--done)}
+.wd.half i{background:linear-gradient(90deg,var(--done) 50%,transparent 50%);border-color:var(--done)}
+.wd.missed i{background:var(--miss)}
+.wd.sel{outline:2px solid var(--accent);outline-offset:1px}
+.wd.today small{color:var(--accent);font-weight:600}
+.wd:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.eyebrow{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.dayhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.dayhead h2{font-size:1.9rem;line-height:1.05}
+.pill{font-size:.78rem;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill.hi{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.check{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+.check .box{flex:none;width:28px;height:28px;border-radius:8px;border:2px solid var(--muted);display:grid;place-items:center;transition:background .15s}
+.check .box svg{opacity:0;width:18px;height:18px}
+.check.on{border-color:var(--done);background:var(--accent-soft)}
+.check.on .box{background:var(--done);border-color:var(--done)}
+.check.on .box svg{opacity:1}
+.check .t{display:flex;flex-direction:column;min-width:0}
+.check .t b{font-weight:600}
+.check .t small{color:var(--muted);font-size:.85rem}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:600;color:var(--accent);list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸ ";}
+details[open] summary::before{content:"▾ ";}
+.block{margin-top:12px}
+.block h3{font-size:1.05rem;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.ex{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.ex:last-child{border-bottom:0}
+.ex span{color:var(--muted);font-size:.86rem;grid-column:1}
+.ex em{font-style:normal;font-weight:600;font-variant-numeric:tabular-nums;grid-row:1/3;grid-column:2;align-self:center;text-align:right}
+.note{font-size:.9rem;background:var(--bg);border-radius:10px;padding:10px 12px}
+.note b{display:block;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.toggle{display:flex;gap:8px;align-items:center;font-size:.9rem;color:var(--muted)}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+.mini h2{font-size:1.6rem}
+.why{font-size:.9rem;color:var(--muted)}
+.counter{display:flex;flex-direction:column;gap:10px}
+.count{display:flex;align-items:baseline;gap:6px;font-family:var(--display)}
+.count b{font-size:3rem;line-height:1;font-variant-numeric:tabular-nums}
+.count span{font-size:1.4rem;color:var(--muted)}
+.bar{height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
+.bar div{height:100%;background:var(--accent);width:0;transition:width .25s}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btns button{flex:1 1 0;min-width:64px;font:600 1.05rem var(--display);letter-spacing:.03em;padding:12px 0;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.btns button.plus{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.habits{display:flex;flex-direction:column;gap:8px}
+.tahak h3{font-size:1rem;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px}
+.tahak table{width:100%;border-collapse:collapse;font-size:.9rem}
+.tahak td{padding:5px 0;border-bottom:1px dashed var(--line);vertical-align:top}
+.tahak td:last-child{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:10px}
+.status{font-size:.8rem;color:var(--muted);text-align:center}
+.done-banner{display:none;font-family:var(--display);font-size:1.2rem;text-transform:uppercase;letter-spacing:.05em;text-align:center;color:var(--accent-ink);background:var(--accent);border-radius:12px;padding:10px}
+.done-banner.show{display:block}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="hDate">Dnes</h1>
+      <div class="sub" id="hWeek">Týden 1 mini úkolů</div>
+    </div>
+    <div class="streak"><b id="streak">0</b><span>dní v řadě</span></div>
+  </header>
+
+  <nav class="week" id="week" aria-label="Dny v týdnu"></nav>
+
+  <div class="done-banner" id="banner">Den splněn ✓</div>
+
+  <section class="card" id="mainCard">
+    <div class="dayhead">
+      <div>
+        <div class="eyebrow" id="dEyebrow">Hlavní trénink</div>
+        <h2 id="dTitle">—</h2>
+      </div>
+      <span class="pill" id="dPill">—</span>
+    </div>
+    <button class="check" id="cMain" type="button" aria-pressed="false">
+      <span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      <span class="t"><b id="cMainLabel">Trénink hotový</b><small id="cMainSub">—</small></span>
+    </button>
+    <label class="toggle" id="shortWrap"><input type="checkbox" id="short"> Málo času: dělám zkrácenou verzi (počítá se)</label>
+    <details id="det">
+      <summary>Rozpis tréninku</summary>
+      <div id="blocks"></div>
+    </details>
+  </section>
+
+  <section class="card mini">
+    <div class="eyebrow">Mini úkol navíc</div>
+    <h2 id="mTitle">—</h2>
+    <div class="why" id="mWhy"></div>
+    <div id="mBody"></div>
+  </section>
+
+  <section class="card">
+    <div class="eyebrow">Každý den</div>
+    <div class="habits" id="habits"></div>
+  </section>
+
+  <section class="card tahak">
+    <details>
+      <summary>Tahák: tempa, RIR, progrese</summary>
+      <h3>Tempa (min/km)</h3>
+      <table>
+        <tr><td>Z2 / lehce · mluvíš v celých větách</td><td>5:00–5:20</td></tr>
+        <tr><td>Regenerace · den po zápase</td><td>5:30+</td></tr>
+        <tr><td>Práh · mluvíš po slovech</td><td>4:05–4:15</td></tr>
+        <tr><td>Intervaly 4 min · nemluvíš</td><td>3:55–4:05</td></tr>
+        <tr><td>Cíl 10 km sub-40</td><td>3:59</td></tr>
+      </table>
+      <h3>RIR (kolik nechat v rezervě)</h3>
+      <table>
+        <tr><td>Pondělí a neděle · tvrdé dny</td><td>RIR 1–2</td></tr>
+        <tr><td>Středa · doplňkový objem</td><td>RIR 2</td></tr>
+        <tr><td>Pátek · zítra hraješ</td><td>RIR 3–4</td></tr>
+        <tr><td>Bench vždy · vratká lavice</td><td>RIR 2+</td></tr>
+        <tr><td>Mini úkoly · kliky a shyby</td><td>RIR 2–3</td></tr>
+      </table>
+      <h3>Progrese</h3>
+      <p class="why">Dáš horní hranici opakování při daném RIR, přidáš váhu (2,5 kg u osy) a spadneš na spodní hranici. U jednoruček nejdřív přidej opakování. Páteční cviky nezvyšuj nikdy. Mini úkoly rostou samy každý týden až do stropu.</p>
+      <h3>Bílkoviny</h3>
+      <p class="why">140–155 g denně, 4 jídla po ~35 g. Svaly při stejné váze rostou pomalu (1,5–3 kg za rok), proto sleduj váhy na benchi a shyby se zátěží, ne váhu na váze.</p>
+    </details>
+  </section>
+
+  <div class="status" id="status">Data jsou uložená v tomto telefonu · funguje i offline</div>
+</div>
+
+<script>
+const START = new Date(2026,9,12); // pondělí 12. 10. 2026 = týden 1
+const DAYN = ["Neděle","Pondělí","Úterý","Středa","Čtvrtek","Pátek","Sobota"];
+const DAYS = ["Ne","Po","Út","St","Čt","Pá","So"];
+
+const PLAN = {
+ 1:{title:"Běh + tlak",pill:"70 + 40 min · střední",hi:false,label:"Běh + Tlak 1 hotový",
+  blocks:[
+   {h:"Kombinovaný běh · 70 min",ex:[["Rozklus","volně","10 min"],["Prahový blok","4:05–4:15/km","20 min"],["Z2 blok","5:00–5:15/km","40 min"]]},
+   {h:"Tlak 1 · prsa, ramena, triceps · 40 min",ex:[["Bench","4 × 6 · RIR 2","57,5 kg"],["Vojenský tlak s osou","4 × 6 · RIR 2","35 kg"],["Rozpažky s jednoručkami","3 × 12 · RIR 1","2×12,5 kg"],["Dipy","3 × 10 · RIR 1","vlastní"],["Upažování","4 × 15 · RIR 1","2×7,5 kg"],["Francouzský tlak","3 × 12 · RIR 1","12,5 kg"],["Nordic curl","2 × 5 · pojistka","vlastní"]]}],
+  short:"Běh 10 rozklus + 20 práh + 15 Z2. Silový: bench, vojenský tlak, upažování, nordic curl.",
+  notes:[["Odstup","Silový ráno, nebo aspoň 4 hodiny od běhu. Když to nejde, silový první a běh po něm."],["Kontrola běhu","V Z2 mluvíš v celých větách."]]},
+ 2:{title:"Jen fotbal",pill:"17:00–20:30 · vysoká",hi:true,label:"Fotbal odchozený",
+  blocks:[{h:"Večer",ex:[["Trénink U9","počítej jako zátěž","17:00"],["Vlastní trénink","","19:00"]]}],
+  short:null,notes:[["Úkol dne","Jídlo připravené ráno, snědené v autě cestou z tréninku."]]},
+ 3:{title:"Intervaly + tah",pill:"50 + 25 min · maximální",hi:true,label:"Intervaly + Tah 2 hotové",
+  blocks:[
+   {h:"VO2max intervaly · 50 min",ex:[["Rozklus","volně + 4× 20 m rozběh","15 min"],["4 × interval","3:55–4:05/km, mezi nimi 3 min klus","4 × 4 min"],["Výklus","volně","10 min"]]},
+   {h:"Tah 2 · záda, ramena, core · 25 min",ex:[["Shyby","3 × 8 · RIR 2 · klidně venku","vlastní"],["Veslování jednoruč","3 × 12 / ruku · RIR 2","15 kg"],["Upažování","3 × 15 · RIR 2","2×7,5 kg"],["Bicepsový zdvih","3 × 12 · RIR 2","2×12,5 kg"],["Kolena k břichu ve visu","3 × 12","vlastní"]]}],
+  short:"10 rozklus + 3 intervaly + 5 výklus. Silový: shyby, upažování, biceps.",
+  notes:[["Když jsi unavený","Po tvrdém úterku jen 3 intervaly a silovou část zkrať na shyby a upažování."],["Progrese","Za 4–6 týdnů přidej pátý interval, ne rychlejší tempo."]]},
+ 4:{title:"Jen fotbal",pill:"17:00–20:30 · vysoká",hi:true,label:"Fotbal odchozený",
+  blocks:[{h:"Večer",ex:[["Trénink U9","počítej jako zátěž","17:00"],["Vlastní trénink","","19:00"]]}],
+  short:null,notes:[["Kontrola","Když se ve čtvrtek na hřišti cítíš mrtvý dva týdny po sobě, uber ve středě."]]},
+ 5:{title:"Lehký tlak + výbušnost",pill:"28 min · nízká",hi:false,label:"Tlak 2 + výbušnost hotové",
+  blocks:[
+   {h:"Tlak 2 · prsa a ramena · lehce",ex:[["Bench","3 × 12 · RIR 3","45 kg"],["Rozpažky s jednoručkami","3 × 15 · RIR 3","2×10 kg"],["Upažování","3 × 15 · RIR 2","2×7,5 kg"]]},
+   {h:"Výbušnost · před zápasem",ex:[["Kettlebell swing","4 × 10 · výbušně z boků","KB"],["Akcelerace 20 m","4 × · 90 % rychlosti","plná pauza"]]}],
+  short:"Zápasy U9 v pátek? Nech jen swing a akcelerace. Osm minut.",
+  notes:[["Pravidlo","Odcházíš svěží, ne uhoněný. Nic tady nesmí bolet v sobotu."]]},
+ 6:{title:"Zápas",pill:"90 min · maximální",hi:true,label:"Zápas + vlastní rozcvička",
+  blocks:[
+   {h:"Před zápasem · vlastní rozcvička",ex:[["Klus","volně","5 min"],["Dynamická mobilita","kyčle, hamstringy","3 min"],["Akcelerace 30 m","4 × · 90 %","—"]]},
+   {h:"Po zápase · do hodiny",ex:[["Chůze","nezastavit se hned","10 min"],["Jídlo","bílkoviny + sacharidy","do 60 min"]]}],
+  short:null,notes:[["Nevynechávej","Rozcvičku si dodělej sám, i když tým dělá svoji."]]},
+ 0:{title:"Tah: záda a biceps",pill:"40 min · střední",hi:false,label:"Tah 1 hotový",
+  blocks:[
+   {h:"Tah 1 · záda, biceps, zadní ramena · 40 min",ex:[["Shyby","4 × 6–8 · RIR 1–2","+5 kg"],["Veslování v předklonu","4 × 8 · RIR 2 · s osou","45 kg"],["Veslování jednoruč","3 × 10 / ruku · RIR 1–2","15 kg"],["Rozpažky v předklonu","3 × 15 · RIR 1","2×7,5 kg"],["Bicepsový zdvih s osou","3 × 10 · RIR 1","30 kg"],["Kladivový zdvih","3 × 12 · RIR 1","2×12,5 kg"]]},
+   {h:"Volitelně",ex:[["Regenerační klus","pod 5:30/km","25 min"]]}],
+  short:null,notes:[["Kde tlačit","Poslední série shybů a veslování RIR 1. Jeden v rezervě, ne nula."],["Pravidlo","Nohy dnes nula. Zítra tě čeká 70min běh."]]}
+};
+
+// Mini úkoly: každý týden o kus víc, se stropem
+function mini(dow, w){
+  const k=w-1;
+  switch(dow){
+   case 1: { const s=Math.min(40+5*k,60);
+     return {type:"check",title:`Vis na hrazdě 3 × ${s} s`,why:"Silnější úchop a zdravá ramena = víc opakování ve shybech. Prsa dnes nepřidávám, 7 sérií v pondělí je strop, další série by už nic nepřidaly.",label:`3 × ${s} s visu hotovo`}; }
+   case 2: { const t=Math.min(100+10*k,150);
+     return {type:"count",title:`${t} kliků přes den`,target:t,steps:[10,20,25],why:"Třetí podnět pro prsa a triceps mezi pondělím a pátkem. Série po 20–25, vždy 2–3 v rezervě. Horní tělo máš dnes čerstvé, fotbal jde po nohách."}; }
+   case 3: { const s=Math.min(60+10*k,90);
+     return {type:"check",title:`Plank 3 × ${s} s`,why:"Pevný trup = stabilnější bench, vojenský tlak i běh. Málo únavy, do intervalů a tahu se vejde.",label:`3 × ${s} s planku hotovo`}; }
+   case 4: { const t=Math.min(30+5*k,50);
+     return {type:"count",title:`${t} shybů přes den`,target:t,steps:[1,3,5],why:"Shyby se zlepšují častým tréninkem bez únavy. Série po 4–5, jen asi polovina tvého maxima, nikdy do selhání. Do nedělního těžkého tahu se stihneš zregenerovat."}; }
+   case 5: { const r=Math.min(12+k,20);
+     return {type:"check",title:`Diamantové kliky 3 × ${r}`,why:"Triceps má v plánu nejméně sérií (6 týdně). Tohle ho dorovná a nohy před zápasem nezatíží.",label:`3 × ${r} diamantových kliků hotovo`}; }
+   case 6: return {type:"check",title:"Jídlo do 60 minut po zápase",why:"Bílkoviny + sacharidy hned po zápase. Bez toho se sval po nejtvrdší zátěži týdne neopraví a pondělí bude těžké.",label:"Snědeno do hodiny"};
+   case 0: return {type:"check",title:"Zapiš shyby se zátěží a váhu na benchi",why:"Sval roste pomalu, takže ho musíš měřit výkonem. Když dva týdny stojí váhy, je čas něco změnit.",label:"Zapsáno do poznámek"};
+  }
+}
+
+// ---------- stav ----------
+let store = {};      // "YYYY-MM-DD" -> {main, short, mini, miniCount, protein, sleep}
+let docRefFor = null;
+let selected = new Date(); selected.setHours(0,0,0,0);
+const LS="miraTrenink.v1";
+try{ store = JSON.parse(localStorage.getItem(LS)||"{}")||{}; }catch(e){ store={}; }
+
+const key = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const today = () => { const t=new Date(); t.setHours(0,0,0,0); return t; };
+const weekNo = d => Math.max(1, Math.floor((d-START)/864e5/7)+1);
+const addDays=(d,n)=>{const x=new Date(d); x.setDate(x.getDate()+n); return x;};
+const get = d => store[key(d)] || {};
+
+function miniDone(d){ const m=mini(d.getDay(),weekNo(d)), s=get(d);
+  return m.type==="count" ? (s.miniCount||0) >= m.target : !!s.mini; }
+function dayState(d){ const s=get(d); const a=!!s.main, b=miniDone(d);
+  return a&&b ? "full" : (a||b ? "half" : "none"); }
+
+function streak(){
+  let d=today(), n=0;
+  if(dayState(d)!=="full") d=addDays(d,-1);
+  while(d>=addDays(START,-60) && dayState(d)==="full"){ n++; d=addDays(d,-1); }
+  return n;
+}
+
+const timers={};
+function save(d){
+  const k=key(d);
+  try{ localStorage.setItem(LS, JSON.stringify(store)); }catch(e){}
+  if(!docRefFor) return;
+  clearTimeout(timers[k]);
+  timers[k]=setTimeout(async()=>{
+    try{ await docRefFor(k).set(store[k]||{}); 0; }
+    catch(e){ setStatus("Uložení selhalo, zkusím to při další změně"); }
+  },500);
+}
+function update(d, patch){ const k=key(d); store[k]={...(store[k]||{}),...patch}; save(d); render(); }
+function setStatus(t){ document.getElementById("status").textContent=t; }
+
+// ---------- render ----------
+const $=id=>document.getElementById(id);
+function setCheck(btn,on){ btn.classList.toggle("on",on); btn.setAttribute("aria-pressed",on?"true":"false"); }
+
+function checkBtn(id,label,sub,on,fn){
+  const b=document.createElement("button"); b.type="button"; b.className="check"; b.id=id;
+  b.innerHTML=`<span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span class="t"><b></b><small></small></span>`;
+  b.querySelector("b").textContent=label; b.querySelector("small").textContent=sub||"";
+  if(!sub) b.querySelector("small").remove();
+  setCheck(b,on); b.onclick=fn; return b;
+}
+
+function render(){
+  const d=selected, dow=d.getDay(), w=weekNo(d), p=PLAN[dow], s=get(d), t=today();
+  const isToday = key(d)===key(t);
+  $("hDate").textContent = isToday ? `Dnes · ${DAYN[dow]}` : `${DAYN[dow]} ${d.getDate()}. ${d.getMonth()+1}.`;
+  $("hWeek").textContent = `Týden ${w} mini úkolů`;
+  $("streak").textContent = streak();
+
+  // týdenní pás (po–ne)
+  const mon = addDays(d, -((dow+6)%7));
+  const wk=$("week"); wk.innerHTML="";
+  for(let i=0;i<7;i++){
+    const x=addDays(mon,i), st=dayState(x), b=document.createElement("button");
+    b.type="button"; b.className="wd";
+    if(st==="full") b.classList.add("full"); else if(st==="half") b.classList.add("half");
+    else if(x<t) b.classList.add("missed");
+    if(key(x)===key(d)) b.classList.add("sel");
+    if(key(x)===key(t)) b.classList.add("today");
+    b.innerHTML=`<small>${DAYS[x.getDay()]}</small><b>${x.getDate()}</b><i></i>`;
+    b.setAttribute("aria-label",`${DAYN[x.getDay()]} ${x.getDate()}. ${x.getMonth()+1}.`);
+    b.onclick=()=>{ selected=x; render(); };
+    wk.appendChild(b);
+  }
+
+  // hlavní trénink
+  $("dEyebrow").textContent = "Hlavní trénink";
+  $("dTitle").textContent=p.title;
+  $("dPill").textContent=p.pill; $("dPill").classList.toggle("hi",p.hi);
+  $("cMainLabel").textContent=p.label;
+  $("cMainSub").textContent = s.short ? "Zkrácená verze · počítá se" : "Klikni, až budeš mít hotovo";
+  setCheck($("cMain"), !!s.main);
+  $("cMain").onclick=()=>update(d,{main:!s.main});
+  $("shortWrap").hidden=!p.short;
+  $("short").checked=!!s.short;
+  $("short").onchange=e=>update(d,{short:e.target.checked});
+  const bl=$("blocks"); bl.innerHTML="";
+  if(s.short && p.short){ const n=document.createElement("div"); n.className="note"; n.innerHTML="<b>Zkrácená verze</b>"; n.append(p.short); bl.appendChild(n); }
+  p.blocks.forEach(B=>{
+    const div=document.createElement("div"); div.className="block";
+    const h=document.createElement("h3"); h.textContent=B.h; div.appendChild(h);
+    B.ex.forEach(([n,sub,val])=>{ const r=document.createElement("div"); r.className="ex";
+      r.innerHTML="<div></div><span></span><em></em>"; r.children[0].textContent=n; r.children[1].textContent=sub; r.children[2].textContent=val;
+      if(!sub) r.children[1].remove(); div.appendChild(r); });
+    bl.appendChild(div);
+  });
+  p.notes.forEach(([h,tx])=>{ const n=document.createElement("div"); n.className="note block"; n.innerHTML="<b></b>"; n.firstChild.textContent=h; n.append(tx); bl.appendChild(n); });
+
+  // mini úkol
+  const m=mini(dow,w);
+  $("mTitle").textContent=m.title; $("mWhy").textContent=m.why;
+  const mb=$("mBody"); mb.innerHTML="";
+  if(m.type==="count"){
+    const c=s.miniCount||0, wrap=document.createElement("div"); wrap.className="counter";
+    wrap.innerHTML=`<div class="count"><b>${c}</b><span>/ ${m.target}</span></div><div class="bar"><div style="width:${Math.min(100,c/m.target*100)}%"></div></div>`;
+    const btns=document.createElement("div"); btns.className="btns";
+    const minus=document.createElement("button"); minus.type="button"; minus.textContent=`−${m.steps[0]}`;
+    minus.onclick=()=>update(d,{miniCount:Math.max(0,c-m.steps[0])}); btns.appendChild(minus);
+    m.steps.forEach(st=>{ const b=document.createElement("button"); b.type="button"; b.className="plus"; b.textContent=`+${st}`;
+      b.onclick=()=>update(d,{miniCount:c+st}); btns.appendChild(b); });
+    wrap.appendChild(btns); mb.appendChild(wrap);
+  } else {
+    mb.appendChild(checkBtn("cMini",m.label,"",!!s.mini,()=>update(d,{mini:!s.mini})));
+  }
+
+  // každodenní návyky (nepočítají se do série, ale jsou vidět)
+  const hb=$("habits"); hb.innerHTML="";
+  hb.appendChild(checkBtn("cProt","Bílkoviny 140 g","4 jídla po ~35 g",!!s.protein,()=>update(d,{protein:!s.protein})));
+  hb.appendChild(checkBtn("cSleep","Spát do 22:30","Bez spánku sval neroste",!!s.sleep,()=>update(d,{sleep:!s.sleep})));
+
+  $("banner").classList.toggle("show", dayState(d)==="full");
+}
+
+render();
+
+
+// po půlnoci přepni na nový den
+setInterval(()=>{ const t=today(); if(key(selected)!==key(t) && Date.now()-lastTap>3*60e3){ selected=t; render(); } },60e3);
+let lastTap=Date.now(); document.addEventListener("click",()=>lastTap=Date.now());
+
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
+</script>
+
+</body>
+</html>
