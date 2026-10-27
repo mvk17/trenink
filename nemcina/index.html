@@ -169,6 +169,17 @@ textarea.typebox{min-height:110px}
 .stat b{display:block;font:800 30px/1 var(--display);font-variant-numeric:tabular-nums}
 .stat span{font-size:13px;color:var(--muted);font-weight:600}
 
+.inst{flex:1;display:flex;flex-direction:column;gap:18px;padding-block:28px 24px}
+.inst h1{font-size:34px;line-height:1.05}
+.inst .big{font-size:18px}
+.appIcon{width:88px;height:88px;border-radius:22px;background:#F25A1D;color:#fff;display:grid;place-items:center;font:800 40px/1 var(--display);box-shadow:0 6px 0 color-mix(in srgb,#F25A1D 70%,#000)}
+.stepsI{display:flex;flex-direction:column;gap:14px;margin:0;padding:0;list-style:none}
+.stepsI li{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start;font-size:18px;line-height:1.35}
+.stepsI li > i{font-style:normal;width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:800 22px/1 var(--display)}
+.kbd{display:inline-block;border:2px solid var(--line);background:var(--surface);border-radius:8px;padding:1px 8px;font-weight:700;white-space:nowrap}
+.mock{background:var(--surface);border:2px solid var(--line);border-radius:14px;overflow:hidden;font-size:16px}
+.mock div{padding:11px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.mock div.hl{background:color-mix(in srgb,var(--accent) 14%,var(--surface));color:var(--ink);font-weight:700;border-left:5px solid var(--accent)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:15px;font-weight:600;z-index:30;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:reduce){.prog i{transition:none}.btn:active,.speak:active{transform:none}}
 </style>
@@ -301,8 +312,8 @@ function toast(msg){ let t = $(".toast"); if (!t){ t = el("div","toast"); docume
 /* ================= CLAUDE ================= */
 let sample = null;
 let installEvt = null;
-window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if (!ses) renderHome(); });
-window.addEventListener("appinstalled", () => { installEvt = null; pref("installHelp","done"); if (!ses) renderHome(); });
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if (document.querySelector(".inst")) renderInstall(); });
+window.addEventListener("appinstalled", () => { installEvt = null; if (document.querySelector(".inst")) renderInstalled(); });
 
 /* ================= DOMŮ ================= */
 const app = $("#app");
@@ -346,14 +357,11 @@ function renderHome(){
   go.onclick = startSession;
   sw2.append(go, status); p.append(sw2);
 
-  const standalone = window.matchMedia && matchMedia("(display-mode: standalone)").matches;
-  if (!standalone && pref("installHelp") !== "done") {
+  if (!isStandalone() && isPhone()) {
     const n = el("div","note");
-    n.innerHTML = installEvt ? `<b>Nainstaluj si appku do telefonu</b><div>Ťukni na tlačítko. Na ploše se objeví ikona <b>Němčina</b> a appka pojede i bez internetu.</div>` : `<b>Nainstaluj si appku do telefonu</b><ol><li>V Chromu ⋮ vpravo nahoře → <b>Instalovat aplikaci</b> (případně <b>Přidat na plochu</b>).</li><li>Na ploše se objeví ikona <b>Němčina</b>. Funguje i bez internetu.</li></ol>`;
-    if (installEvt) { const ib = el("button","btn","Nainstalovat"); ib.onclick = async () => { try{ installEvt.prompt(); await installEvt.userChoice; }catch(e){} installEvt = null; renderHome(); }; n.append(ib); }
-    const ok = el("button","link","Hotovo, skrýt"); ok.style.alignSelf = "flex-start";
-    ok.onclick = () => { pref("installHelp","done"); n.remove(); };
-    n.append(ok); p.append(n);
+    n.append(el("b",null,"Appka ještě není na ploše"));
+    const ib = el("button","btn","Dát na plochu"); ib.onclick = renderInstall; n.append(ib);
+    p.append(n);
   }
 
   if (cur) {
@@ -778,6 +786,74 @@ Odpověz POUZE JSON: {"nazev":"krátký název lekce česky","tip":"jedno gramat
   renderHome();
 }
 
+
+/* ================= INSTALACE NA PLOCHU ================= */
+function isStandalone(){ try{ return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; }catch(e){ return false; } }
+function isPhone(){ return /Android|iPhone|iPad/i.test(navigator.userAgent); }
+function browserKind(){
+  const ua = navigator.userAgent;
+  if (/SamsungBrowser/i.test(ua)) return "samsung";
+  if (/; wv\)|FBAN|FBAV|Instagram|Line\/|Claude/i.test(ua)) return "inapp";
+  if (/Firefox|FxiOS|OPR|EdgA|YaBrowser|MiuiBrowser|HuaweiBrowser/i.test(ua)) return "other";
+  if (/iPhone|iPad/i.test(ua)) return "ios";
+  if (/Chrome/i.test(ua)) return "chrome";
+  return "other";
+}
+const CHROME_LINK = "intent://mvk17.github.io/trenink/nemcina/#Intent;scheme=https;package=com.android.chrome;end";
+function renderInstall(){
+  ses = null; app.innerHTML = "";
+  const scr = el("div","scroll"); app.append(scr);
+  const p = el("div","pad inst"); scr.append(p);
+  p.append(Object.assign(el("div","appIcon"), {textContent:"DE"}));
+  const kind = browserKind();
+  if (installEvt) {
+    p.append(el("h1",null,"Dej si Němčinu na plochu"));
+    p.append(el("div","big","Jedno ťuknutí. Pak ji spouštíš ikonou jako každou jinou appku, i bez internetu."));
+    const b = el("button","btn","Nainstalovat");
+    b.onclick = async () => { try{ installEvt.prompt(); const r = await installEvt.userChoice; if (r && r.outcome === "accepted") { installEvt = null; renderInstalled(); return; } }catch(e){} renderInstall(); };
+    p.append(b);
+    p.append(el("div","muted","Pak potvrď „Instalovat“ v okně, které vyskočí."));
+  } else if (kind === "inapp" || kind === "other") {
+    p.append(el("h1",null,"Otevři to v Chromu"));
+    p.append(el("div","big","Tady to na plochu dát nejde. Ťukni na tlačítko, otevře se Chrome a tam už to půjde jedním ťuknutím."));
+    const a = el("a","btn","Otevřít v Chromu"); a.href = CHROME_LINK; a.style.textAlign = "center"; a.style.textDecoration = "none";
+    p.append(a);
+    p.append(el("div","muted","Kdyby tlačítko nefungovalo: otevři aplikaci Chrome a napiš nahoru adresu mvk17.github.io/trenink/nemcina"));
+  } else if (kind === "samsung") {
+    p.append(el("h1",null,"Dej si Němčinu na plochu"));
+    const ol = el("ol","stepsI");
+    ol.innerHTML = `<li><i>1</i><span>Ťukni dole na <span class="kbd">≡</span> (tři čárky vpravo dole).</span></li><li><i>2</i><span>Ťukni na <span class="kbd">Přidat stránku do</span>.</span></li><li><i>3</i><span>Vyber <span class="kbd">Domovská obrazovka</span> a potvrď <span class="kbd">Přidat</span>.</span></li>`;
+    p.append(ol);
+  } else if (kind === "ios") {
+    p.append(el("h1",null,"Dej si Němčinu na plochu"));
+    const ol = el("ol","stepsI");
+    ol.innerHTML = `<li><i>1</i><span>Ťukni dole na ikonu <span class="kbd">Sdílet</span> (čtverec se šipkou).</span></li><li><i>2</i><span>Sjeď dolů a ťukni na <span class="kbd">Přidat na plochu</span>.</span></li><li><i>3</i><span>Vpravo nahoře <span class="kbd">Přidat</span>.</span></li>`;
+    p.append(ol);
+  } else {
+    p.append(el("h1",null,"Dej si Němčinu na plochu"));
+    const ol = el("ol","stepsI");
+    ol.innerHTML = `<li><i>1</i><span>Ťukni na <span class="kbd">⋮</span> úplně vpravo nahoře (tři tečky nad sebou).</span></li><li><i>2</i><span>V menu ťukni na <span class="kbd">Instalovat aplikaci</span> nebo <span class="kbd">Přidat na plochu</span>. Ukázka:</span></li>`;
+    p.append(ol);
+    const mock = el("div","mock");
+    mock.innerHTML = `<div>Nová karta</div><div>Historie</div><div>Stahování</div><div class="hl">Instalovat aplikaci / Přidat na plochu</div><div>Nastavení</div>`;
+    p.append(mock);
+    const ol2 = el("ol","stepsI");
+    ol2.innerHTML = `<li><i>3</i><span>Potvrď <span class="kbd">Instalovat</span> nebo <span class="kbd">Přidat</span>. Hotovo, ikona <b>Němčina</b> je na ploše.</span></li>`;
+    p.append(ol2);
+  }
+  const skip = el("button","link","Teď ne, chci rovnou trénovat"); skip.style.alignSelf = "center";
+  skip.onclick = () => { try{ sessionStorage.setItem("skipInstall","1"); }catch(e){} renderHome(); };
+  p.append(skip);
+}
+function renderInstalled(){
+  app.innerHTML = "";
+  const p = el("div","pad inst"); app.append(p);
+  p.append(Object.assign(el("div","appIcon"), {textContent:"DE"}));
+  p.append(el("h1",null,"Hotovo, je na ploše"));
+  p.append(el("div","big","Najdi na ploše oranžovou ikonu Němčina a spouštěj ji odtamtud. Tohle okno můžeš zavřít."));
+  const b = el("button","btn ghost","Pokračovat tady"); b.onclick = renderHome; p.append(b);
+}
+
 /* ================= START ================= */
 /* převod pokroku z první verze appky na nový slovníček */
 function migrate(st){
@@ -793,7 +869,8 @@ function migrate(st){
   return changed;
 }
 const local = lsRead(); if (local) { S = local; if (migrate(S)) lsWrite(); }
-renderHome();
+let skipInst = false; try{ skipInst = sessionStorage.getItem("skipInstall") === "1"; }catch(e){}
+if (!isStandalone() && isPhone() && !skipInst) renderInstall(); else renderHome();
 try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
 if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {})); }
 })();
